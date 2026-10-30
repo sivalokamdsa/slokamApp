@@ -78,12 +78,12 @@ SlokamApp/
 
 Defines five data models. A "model" is a table.
 
-| Model        | Holds                                                                 |
-| ------------ | --------------------------------------------------------------------- |
-| `TodoList`   | A list of tasks, with an `archived` flag and `archivedAt` date        |
-| `Todo`       | One task: title, `status` (open/done), `dueDate`, `completedAt`, `listId` |
-| `PlanTopic`  | One FDE topic: topic, category, target date, status                   |
-| `DailyLog`   | One study day: date, hours, notes, mood, energy, linked topics        |
+| Model       | Holds                                                                     |
+| ----------- | ------------------------------------------------------------------------- |
+| `TodoList`  | A list of tasks, with an `archived` flag and `archivedAt` date            |
+| `Todo`      | One task: title, `status` (open/done), `dueDate`, `completedAt`, `listId` |
+| `PlanTopic` | One FDE topic: topic, category, target date, status                       |
+| `DailyLog`  | One study day: date, hours, notes, mood, energy, linked topics            |
 
 `DailyLog` and `PlanTopic` form a many-to-many link (one log can cover several topics, and a topic can appear in many logs). Prisma creates the join table for you.
 
@@ -93,15 +93,15 @@ Status fields are plain strings, not enums, because SQLite handles them simply. 
 
 ### 2. Shared library (`lib/`)
 
-| File | Purpose | Used by |
-| ---- | ------- | ------- |
-| `db.ts` | Creates one `PrismaClient`. Reuses it during dev hot reloads so you don't open many connections. | All API routes, `stats.ts` |
-| `validation.ts` | Zod schemas for every create/update body, plus `parseBody` and `parseId`. | API routes |
-| `api-response.ts` | `badRequest`, `notFound`, `serverError` and `readJson` helpers. | API routes |
-| `dates.ts` | `todayString`, `addDays`, `lastNDays`, `currentStreak`. | `stats.ts`, pages |
-| `stats.ts` | `computeStats()` does all the maths: completion %, per-day counts, per-category progress, hours, and streak. | `app/api/stats/route.ts` |
-| `api-client.ts` | `api`, `post`, `patch`, `del`. Thin wrappers around `fetch` that throw readable errors. | Client pages |
-| `types.ts` | Shapes of the data coming back from the API (e.g. `TodoList`, `Stats`). | Client pages and charts |
+| File              | Purpose                                                                                                      | Used by                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| `db.ts`           | Creates one `PrismaClient`. Reuses it during dev hot reloads so you don't open many connections.             | All API routes, `stats.ts` |
+| `validation.ts`   | Zod schemas for every create/update body, plus `parseBody` and `parseId`.                                    | API routes                 |
+| `api-response.ts` | `badRequest`, `notFound`, `serverError` and `readJson` helpers.                                              | API routes                 |
+| `dates.ts`        | `todayString`, `addDays`, `lastNDays`, `currentStreak`.                                                      | `stats.ts`, pages          |
+| `stats.ts`        | `computeStats()` does all the maths: completion %, per-day counts, per-category progress, hours, and streak. | `app/api/stats/route.ts`   |
+| `api-client.ts`   | `api`, `post`, `patch`, `del`. Thin wrappers around `fetch` that throw readable errors.                      | Client pages               |
+| `types.ts`        | Shapes of the data coming back from the API (e.g. `TodoList`, `Stats`).                                      | Client pages and charts    |
 
 ### 3. API routes (`app/api/`)
 
@@ -113,6 +113,7 @@ Each `route.ts` file exports functions named after HTTP methods (`GET`, `POST`, 
 4. Return JSON, or 404 if the record doesn't exist.
 
 Some business rules live here:
+
 - Marking a to-do or plan topic **done** sets `completedAt`. Reopening clears it. The statistics depend on this timestamp.
 - Archiving a list sets `archivedAt`. You can't add to-dos to an archived list.
 - Routes that return live data export `dynamic = "force-dynamic"`, so Next.js never serves a cached response.
@@ -122,6 +123,7 @@ In Next.js 16, the `params` argument is a Promise, so handlers write `const { id
 ### 4. Pages (`app/*/page.tsx`)
 
 Each page is a client component (`"use client"` at the top) that:
+
 - Loads data with `useQuery` (TanStack Query), which caches results and handles loading and error states.
 - Changes data with `useMutation`, then calls `qc.invalidateQueries()` to refetch. This keeps the UI in sync with the database.
 
@@ -149,15 +151,15 @@ Colours are CSS variables such as `--background`, `--card`, `--accent`. They swi
 
 ## Where to change things
 
-| I want to... | Edit |
-| ------------ | ---- |
-| Add a field to a table | `prisma/schema.prisma`, then run `npx prisma db push` |
-| Change what the API accepts | `lib/validation.ts` and the matching route |
-| Add a new statistic | `lib/stats.ts` (add it to the returned object), then `lib/types.ts`, then the dashboard |
-| Add a new page | New folder under `app/` with a `page.tsx`, then a link in `components/nav.tsx` |
-| Add a new endpoint | New `route.ts` under `app/api/` using the same pattern as the others |
-| Change colours or the look | `app/globals.css` and `components/ui.tsx` |
-| Switch to PostgreSQL later | `provider` and `url` in `prisma/schema.prisma`, plus `DATABASE_URL` in `.env` |
+| I want to...                | Edit                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| Add a field to a table      | `prisma/schema.prisma`, then run `npx prisma db push`                                   |
+| Change what the API accepts | `lib/validation.ts` and the matching route                                              |
+| Add a new statistic         | `lib/stats.ts` (add it to the returned object), then `lib/types.ts`, then the dashboard |
+| Add a new page              | New folder under `app/` with a `page.tsx`, then a link in `components/nav.tsx`          |
+| Add a new endpoint          | New `route.ts` under `app/api/` using the same pattern as the others                    |
+| Change colours or the look  | `app/globals.css` and `components/ui.tsx`                                               |
+| Switch to PostgreSQL later  | `provider` and `url` in `prisma/schema.prisma`, plus `DATABASE_URL` in `.env`           |
 
 ## Commands
 
@@ -170,7 +172,7 @@ npm run build          # production build (checks types and pages)
 npm run lint           # lint the code
 ```
 
-## Things not built yet
+## Things not built yet..
 
 - Login. The app assumes one local user.
 - Per-plan-topic history in the calendar (the calendar shows hours only).
