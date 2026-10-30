@@ -17,23 +17,8 @@ jobs:
     name: Lint and build
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DATABASE_URL: file:./ci.db
 
     steps:
       - name: Checkout repo
@@ -51,8 +36,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply migrations to CI database
-        run: npx prisma migrate deploy
+      - name: Create SQLite schema in CI
+        run: npx prisma db push --skip-generate
 
       - name: Lint
         run: npm run lint
@@ -80,6 +65,8 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
 
+      # .env and the SQLite database stay on the server. The database file is
+      # excluded so a deploy never overwrites production data.
       - name: Upload source with rsync
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -99,7 +86,7 @@ jobs:
             --exclude '*.db-journal' \
             ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
 
-      - name: Install, migrate, build and restart
+      - name: Install, update schema, build and restart
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -115,7 +102,7 @@ jobs:
 
           npm ci
           npx prisma generate
-          npx prisma migrate deploy
+          npx prisma db push --skip-generate
           npm run build
 
           if pm2 describe fde-prep > /dev/null 2>&1; then
