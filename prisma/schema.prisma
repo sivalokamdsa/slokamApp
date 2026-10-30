@@ -1,0 +1,62 @@
+// Database schema for the FDE Preparation Tracker.
+// SQLite keeps the app free and local. To move to PostgreSQL later, change
+// `provider` to "postgresql" and set DATABASE_URL to your Supabase/Neon URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A to-do list. Archiving sets `archived` and `archivedAt`; the list and its
+// tasks are kept so they can be reviewed later.
+model TodoList {
+  id         Int       @id @default(autoincrement())
+  title      String
+  archived   Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  todos      Todo[]
+}
+
+model Todo {
+  id          Int       @id @default(autoincrement())
+  title       String
+  status      String    @default("open") // "open" | "done"
+  dueDate     String?   // "YYYY-MM-DD" (local date, kept as text to avoid timezone shifts)
+  completedAt DateTime?
+  listId      Int
+  list        TodoList  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([listId])
+}
+
+// One topic in the FDE preparation plan (e.g. "Kafka consumer groups").
+model PlanTopic {
+  id          Int        @id @default(autoincrement())
+  topic       String
+  category    String     // e.g. "Data Engineering", "System Design", "Client Communication"
+  targetDate  String?    // "YYYY-MM-DD"
+  status      String     @default("not_started") // "not_started" | "in_progress" | "done"
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  logs        DailyLog[]
+}
+
+// A daily study log. Topics studied link to plan topics.
+model DailyLog {
+  id        Int         @id @default(autoincrement())
+  date      String      // "YYYY-MM-DD"
+  hours     Float       @default(0)
+  notes     String      @default("")
+  mood      Int?        // 1-5
+  energy    Int?        // 1-5
+  createdAt DateTime    @default(now())
+  topics    PlanTopic[]
+
+  @@index([date])
+}
