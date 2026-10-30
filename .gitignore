@@ -43,3 +43,7 @@ next-env.d.ts
 # local database files (never commit data)
 prisma/*.db
 prisma/*.db-journal
+
+# local deploy settings and build staging
+.deploy.env
+.release/

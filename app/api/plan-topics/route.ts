@@ -6,8 +6,9 @@ import { parseBody, planTopicCreateSchema } from "@/lib/validation";
 
 // GET /api/plan-topics
 export async function GET() {
+  // Must sit outside try/catch: connection() signals Next.js to render at request time.
+  await connection();
   try {
-    await connection(); // opt out of prerendering: this reads live data
     const topics = await prisma.planTopic.findMany({
       orderBy: [{ category: "asc" }, { targetDate: "asc" }, { id: "asc" }],
     });
