@@ -37,22 +37,29 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     environment: production
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+      VPS_APP_DIR: ${{ secrets.VPS_APP_DIR }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.VPS_PORT || 22 }}" "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      # Upload the source code. The server's .env and database are excluded so a
-      # deploy never overwrites production data or secrets.
+      # Upload the source. .env and the SQLite database are excluded so a deploy
+      # never overwrites production secrets or data. Excluded files are also
+      # protected from --delete.
       - name: Upload files with rsync
         run: |
           rsync -avz --delete \
-            -e "ssh -p ${{ secrets.VPS_PORT || 22 }} -i ~/.ssh/deploy_key" \
+            -e "ssh -p $VPS_PORT -i ~/.ssh/deploy_key" \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'node_modules/' \
@@ -61,22 +68,24 @@ jobs:
             --exclude '.env.*' \
             --exclude 'prisma/*.db' \
             --exclude 'prisma/*.db-journal' \
-            ./ "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_APP_DIR }}/"
+            ./ "$VPS_USER@$VPS_HOST:$VPS_APP_DIR/"
 
-      # Install, migrate the schema, build, and restart the app on the server.
+      # Install, migrate the schema, build, and restart on the server.
+      # bash -l loads the login profile so npm and pm2 are on PATH.
       - name: Install, build and restart
         run: |
-          ssh -p "${{ secrets.VPS_PORT || 22 }}" -i ~/.ssh/deploy_key \
-            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" bash -s <<'EOF'
+          ssh -p "$VPS_PORT" -i ~/.ssh/deploy_key "$VPS_USER@$VPS_HOST" \
+            bash -l -s -- "$VPS_APP_DIR" <<'REMOTE'
           set -euo pipefail
-          cd "${{ secrets.VPS_APP_DIR }}"
+          APP_DIR="$1"
+          cd "$APP_DIR"
           npm ci
           npx prisma generate
           npx prisma db push --skip-generate
           npm run build
-          pm2 restart slokam || pm2 start npm --name slokam -- start -- -p 3000
+          pm2 startOrRestart ecosystem.config.cjs --env production
           pm2 save
-          EOF
+          REMOTE
 
       - name: Remove SSH key
         if: always()
